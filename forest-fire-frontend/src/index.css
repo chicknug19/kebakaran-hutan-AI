@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f3f4f6;
+}
+
+@keyframes heatwave {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.bg-fire-animated {
+  /* Gradasi warna: Abu gelap -> Merah api -> Oranye -> Abu lagi */
+  background: linear-gradient(-45deg, #1f2937, #7f1d1d, #ea580c, #1f2937);
+  background-size: 400% 400%;
+  animation: heatwave 15s ease infinite;
+}
