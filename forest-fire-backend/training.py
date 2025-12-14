@@ -15,7 +15,7 @@ X = df[features]
 y = df['fire_occurred']
 
 # 3. Bagi Data (80% Training, 20% Testing)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, random_state=42)
 
 # 4. Buat Model Random Forest
 # Kita gunakan n_estimators=300 agar lebih stabil (sesuai riset compare_models)
@@ -28,12 +28,12 @@ model.fit(X_train, y_train)
 # 6. Evaluasi Sebentar (Cek Akurasi)
 y_pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
-print(f"\n✅ Model Berhasil Dilatih!")
-print(f"📊 Akurasi Final: {accuracy * 100:.2f}%")
+print(f"\nModel Berhasil Dilatih!")
+print(f"Akurasi Final: {accuracy * 100:.2f}%")
 print("\nLaporan Detail:")
 print(classification_report(y_test, y_pred))
 
 # 7. Simpan Model ke File .pkl
 # File ini yang nanti dipanggil oleh main.py
 joblib.dump(model, 'model/fire_prediction_model.pkl')
-print("💾 Model tersimpan sebagai 'model/fire_prediction_model.pkl'")
+print("Model tersimpan sebagai 'model/fire_prediction_model.pkl'")
