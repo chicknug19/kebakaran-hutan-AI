@@ -1,27 +1,92 @@
 import pandas as pd
-import os
+import numpy as np
+import random
 
-# 1. Definisikan Data Dummy
-data = {
-    'latitude': [-0.9492, -0.9550, -2.2170, -2.2200, -2.2250, 3.5952, 3.6000, -1.2692, -1.2700, -3.3194, -3.3200, 0.5071, 0.5100, 0.5150, -4.0000, -4.0050],
-    'longitude': [100.3543, 100.3600, 113.9160, 113.9200, 113.9250, 98.6722, 98.6750, 116.8253, 116.8300, 114.5908, 114.6000, 101.4478, 101.4500, 101.4550, 104.0000, 104.0050],
-    'location_name': ['Sumatra_Padang', 'Sumatra_Padang', 'Kalimantan_Tengah', 'Kalimantan_Tengah', 'Kalimantan_Tengah', 'Sumatra_Medan', 'Sumatra_Medan', 'Kalimantan_Balikpapan', 'Kalimantan_Balikpapan', 'Kalimantan_Banjarmasin', 'Kalimantan_Banjarmasin', 'Sumatra_Riau', 'Sumatra_Riau', 'Sumatra_Riau', 'Sumatra_Selatan', 'Sumatra_Selatan'],
-    'temperature': [34.5, 28.0, 36.2, 35.5, 29.0, 33.0, 27.5, 35.8, 30.1, 37.0, 28.5, 36.5, 35.0, 29.0, 34.0, 27.0],
-    'humidity': [45, 85, 30, 35, 80, 50, 90, 38, 75, 25, 82, 33, 40, 88, 42, 85],
-    'rainfall': [0.0, 12.5, 0.0, 0.0, 5.0, 0.0, 20.0, 0.0, 2.0, 0.0, 10.0, 0.0, 0.0, 15.0, 0.0, 25.0],
-    'is_peatland': [0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
-    'fire_occurred': [1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0]
-}
+# Jumlah data total
+NUM_SAMPLES = 5000
 
-# 2. Buat DataFrame
-df = pd.DataFrame(data)
+LOCATIONS = [
+    {"name": "Hutan Lindung - Jambi (Sumatera)", "lat": -1.6101, "lon": 103.6131, "is_peatland": 0},
+    {"name": "Gambut - Riau (Sumatera)", "lat": 0.5071, "lon": 101.4478, "is_peatland": 1},
+    {"name": "Ogan Komering Ilir (Sumatera Selatan)", "lat": -3.3970, "lon": 104.8310, "is_peatland": 1},
+    {"name": "Hutan Kutai - Kartanegara (Kalimantan)", "lat": -0.4437, "lon": 117.1566, "is_peatland": 0},
+    {"name": "Gambut - Palangkaraya (Kalimantan)", "lat": -2.2170, "lon": 113.9160, "is_peatland": 1}
+]
 
-# 3. Cek apakah folder 'dataset' sudah ada, jika belum buat baru
-if not os.path.exists('dataset'):
-    os.makedirs('dataset')
+data = []
 
-# 4. Simpan ke CSV
-csv_path = 'dataset/indonesia_fire_data.csv'
-df.to_csv(csv_path, index=False)
+print("Generate Data: Realistis (Ada Hujan tapi Tetap Kebakaran)...")
 
-print(f"Berhasil! File CSV telah dibuat di: {csv_path}")
+for _ in range(NUM_SAMPLES):
+    loc = random.choice(LOCATIONS)
+    
+    # Kita bagi cuaca menjadi 3 Tipe
+    weather_type = random.choices(
+        ['HUJAN_DERAS', 'GERIMIS', 'KERING'], 
+        weights=[20, 30, 50] # 20% Hujan Deras, 30% Gerimis, 50% Kering
+    )[0]
+    
+    # Default values
+    fire_occurred = 0
+    
+    if weather_type == 'HUJAN_DERAS':
+        # SKENARIO 1: Hujan Deras -> Api Mati Total
+        temperature = round(random.uniform(20, 26), 2)
+        humidity = random.randint(85, 99)
+        rainfall = round(random.uniform(10.0, 50.0), 1) # Di atas 10mm
+        fire_occurred = 0 # Mustahil kebakaran
+        
+    elif weather_type == 'GERIMIS':
+        # SKENARIO 2: Gerimis -> INI YANG ANDA MINTA
+        # Hujan ada, tapi dikit. Api masih bisa hidup (terutama di gambut).
+        temperature = round(random.uniform(26, 31), 2)
+        humidity = random.randint(60, 85)
+        rainfall = round(random.uniform(0.1, 5.0), 1) # Hujan ringan
+        
+        # Logika: Kalau Gerimis + Gambut, peluang kebakaran TETAP ADA (kecil)
+        chance = 5 # Peluang dasar 5%
+        if loc['is_peatland'] == 1:
+            chance += 15 # Di gambut, gerimis tidak mempan (peluang naik jadi 20%)
+            
+        if random.randint(0, 100) < chance:
+            fire_occurred = 1
+        else:
+            fire_occurred = 0
+            
+    else: # weather_type == 'KERING'
+        # SKENARIO 3: Tidak Hujan -> Risiko Tinggi
+        rainfall = 0.0
+        
+        # Sub-skenario: Panas Normal vs Panas Ekstrim
+        if random.random() < 0.6: # 60% hari kering itu panas biasa
+            temperature = round(random.uniform(28, 33), 2)
+            humidity = random.randint(45, 70)
+            chance = 10 # Risiko rendah
+        else: # 40% hari kering itu Panas Ekstrim (Heatwave)
+            temperature = round(random.uniform(34, 40), 2)
+            humidity = random.randint(20, 45)
+            chance = 80 # Risiko SANGAT TINGGI
+            
+            # Faktor Gambut memperparah
+            if loc['is_peatland'] == 1:
+                chance += 15 # Jadi 95%
+        
+        # Eksekusi peluang kebakaran
+        if random.randint(0, 100) < chance:
+            fire_occurred = 1
+        else:
+            fire_occurred = 0
+
+    data.append([
+        loc['lat'], loc['lon'], loc['name'], 
+        temperature, humidity, rainfall, 
+        loc['is_peatland'], fire_occurred
+    ])
+
+# Simpan
+df = pd.DataFrame(data, columns=['latitude', 'longitude', 'location_name', 'temperature', 'humidity', 'rainfall', 'is_peatland', 'fire_occurred'])
+df.to_csv("dataset/indonesia_fire_data.csv", index=False)
+
+print(f"Selesai! Data mencakup skenario 'Hujan Gerimis tapi Kebakaran'.")
+print("Sebaran Data:")
+print(df.groupby('is_peatland')['fire_occurred'].value_counts())

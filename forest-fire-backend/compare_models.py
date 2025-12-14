@@ -1,65 +1,81 @@
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report
-# Import 3 Algoritma Berbeda
+
+# --- IMPORT MODEL ---
+from sklearn.linear_model import LogisticRegression 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-import warnings
 
-# Matikan warning merah yang tidak perlu (agar rapi)
-warnings.filterwarnings('ignore')
+# --- 1. LOAD DATASET ---
+df = pd.read_csv("dataset/indonesia_fire_data.csv") 
 
-print("="*40)
-print("   MEMULAI KOMPETISI ALGORITMA AI")
-print("="*40)
-
-# 1. Load Data
-try:
-    df = pd.read_csv("dataset/indonesia_fire_data.csv")
-    print(f"Dataset dimuat: {len(df)} baris data")
-except:
-    print("Error: File 'dataset/indonesia_fire_data.csv' tidak ditemukan.")
-    exit()
-
+# --- 2. PERSIAPAN DATA ---
+# Sesuaikan nama kolom dengan CSV Anda
 X = df[['temperature', 'humidity', 'rainfall', 'is_peatland']]
-y = df['fire_occurred']
+y = df['fire_occurred'] 
 
-# 2. Split Data (80% Latihan, 20% Ujian)
+# Split Data (80% Latih, 20% Uji)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 3. Definisikan Para Peserta (Model)
+# Scaling (Penting untuk SVM dan Logistic Regression)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# --- 3. DEFINISI MODEL ---
 models = {
     "Logistic Regression": LogisticRegression(),
-    "Support Vector Machine (SVM)": SVC(),
-    "Random Forest (Juara Bertahan)": RandomForestClassifier(n_estimators=100)
+    "SVM (Support Vector Machine)": SVC(),
+    "Random Forest": RandomForestClassifier(n_estimators=300, max_depth=15, random_state=42)
 }
 
-results = []
-
-print("\nSedang melatih model... (Mohon tunggu sebentar)\n")
-
-# 4. Latih & Bandingkan
-print(f"{'NAMA MODEL':<35} | {'AKURASI':<10}")
-print("-" * 50)
+# --- 4. TRAINING & EVALUASI (OUTPUT PERSEN) ---
+print("="*70)
+print("HASIL PERBANDINGAN MODEL (FORMAT PERSEN)")
+print("="*70)
 
 for name, model in models.items():
-    # Latih
-    model.fit(X_train, y_train)
+    # Training
+    if name == "Random Forest":
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+    else:
+        model.fit(X_train_scaled, y_train)
+        y_pred = model.predict(X_test_scaled)
     
-    # Uji
-    y_pred = model.predict(X_test)
-    
-    # Nilai
+    # Ambil report dalam bentuk Dictionary
+    report = classification_report(y_test, y_pred, output_dict=True)
     acc = accuracy_score(y_test, y_pred)
-    results.append({"Model": name, "Akurasi": acc})
     
-    print(f"{name:<35} | {acc*100:.2f}%")
-
-print("-" * 50)
-
-# Cari Pemenang
-best_model = max(results, key=lambda x:x['Akurasi'])
-print(f"\n🏆 PEMENANG: {best_model['Model']}")
-print(f"   Skor Akhir: {best_model['Akurasi']*100:.2f}%")
-print("="*50)
+    print(f"MODEL: {name.upper()}")
+    print(f"Total Akurasi: {acc*100:.2f}%")
+    print("-" * 40)
+    
+    # KITA GANTI LABELNYA DI SINI
+    
+    # --- STATUS: BAHAYA KEBAKARAN (Dulunya Class 1) ---
+    prec_fire = report['1']['precision'] * 100
+    rec_fire  = report['1']['recall'] * 100
+    f1_fire   = report['1']['f1-score'] * 100
+    
+    print(f"Status: BAHAYA KEBAKARAN (Api Terdeteksi)")
+    print(f" > Seberapa Tepat Tebakannya (Precision) : {prec_fire:.2f}%")
+    print(f" > Seberapa Banyak Api Terdeteksi (Recall): {rec_fire:.2f}%")
+    print(f" > Nilai Kualitas Model (F1-Score)        : {f1_fire:.2f}%")
+    
+    print("-" * 40)
+    
+    # --- STATUS: AMAN (Dulunya Class 0) ---
+    prec_safe = report['0']['precision'] * 100
+    rec_safe  = report['0']['recall'] * 100
+    f1_safe   = report['0']['f1-score'] * 100
+    
+    print(f"Status: KONDISI AMAN (Tidak Ada Api)")
+    print(f" > Precision : {prec_safe:.2f}%")
+    print(f" > Recall    : {rec_safe:.2f}%")
+    print(f" > F1-Score  : {f1_safe:.2f}%")
+    
+    print("="*70)
