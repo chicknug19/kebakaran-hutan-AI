@@ -14,7 +14,7 @@ df = pd.read_csv("dataset/indonesia_fire_data.csv")
 
 # --- 2. PERSIAPAN DATA ---
 # Sesuaikan nama kolom dengan CSV Anda
-X = df[['temperature', 'humidity', 'rainfall', 'is_peatland']]
+X = df[['temperature', 'humidity', 'rainfall', 'wind_speed', 'is_peatland']]
 y = df['fire_occurred'] 
 
 # Split Data (80% Latih, 20% Uji)

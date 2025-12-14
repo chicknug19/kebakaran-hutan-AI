@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import random
 
-# Jumlah data total
+# Jumlah data
 NUM_SAMPLES = 5000
 
 LOCATIONS = [
@@ -15,78 +15,91 @@ LOCATIONS = [
 
 data = []
 
-print("Generate Data: Realistis (Ada Hujan tapi Tetap Kebakaran)...")
+print("Generate Data: Advanced (With Wind Speed)...")
 
 for _ in range(NUM_SAMPLES):
     loc = random.choice(LOCATIONS)
     
-    # Kita bagi cuaca menjadi 3 Tipe
+    # KITA BAGI JADI 3 TIPE CUACA UTAMA
     weather_type = random.choices(
-        ['HUJAN_DERAS', 'GERIMIS', 'KERING'], 
-        weights=[20, 30, 50] # 20% Hujan Deras, 30% Gerimis, 50% Kering
+        ['BADAI_HUJAN', 'NORMAL', 'EKSTRIM_KERING'], 
+        weights=[25, 45, 30] 
     )[0]
     
     # Default values
     fire_occurred = 0
     
-    if weather_type == 'HUJAN_DERAS':
-        # SKENARIO 1: Hujan Deras -> Api Mati Total
-        temperature = round(random.uniform(20, 26), 2)
-        humidity = random.randint(85, 99)
-        rainfall = round(random.uniform(10.0, 50.0), 1) # Di atas 10mm
-        fire_occurred = 0 # Mustahil kebakaran
+    if weather_type == 'BADAI_HUJAN':
+        # Hujan + Angin Kencang = Tetap Aman (Air memadamkan api)
+        temperature = round(random.uniform(20, 27), 2)
+        humidity = random.randint(80, 99)
+        rainfall = round(random.uniform(10.0, 60.0), 1) 
+        wind_speed = round(random.uniform(5.0, 20.0), 2) # Angin kencang
+        fire_occurred = 0 
         
-    elif weather_type == 'GERIMIS':
-        # SKENARIO 2: Gerimis -> INI YANG ANDA MINTA
-        # Hujan ada, tapi dikit. Api masih bisa hidup (terutama di gambut).
-        temperature = round(random.uniform(26, 31), 2)
-        humidity = random.randint(60, 85)
-        rainfall = round(random.uniform(0.1, 5.0), 1) # Hujan ringan
+    elif weather_type == 'NORMAL':
+        # Cuaca biasa, bisa gerimis, bisa mendung
+        temperature = round(random.uniform(27, 32), 2)
+        humidity = random.randint(55, 80)
+        rainfall = round(random.uniform(0.0, 5.0), 1) # Gerimis/Kering
+        wind_speed = round(random.uniform(1.0, 10.0), 2) # Angin sepoi-sepoi
         
-        # Logika: Kalau Gerimis + Gambut, peluang kebakaran TETAP ADA (kecil)
-        chance = 5 # Peluang dasar 5%
-        if loc['is_peatland'] == 1:
-            chance += 15 # Di gambut, gerimis tidak mempan (peluang naik jadi 20%)
+        # Peluang kebakaran sangat kecil (kecuali human error di gambut)
+        chance = 2
+        if loc['is_peatland'] == 1 and rainfall < 1.0:
+            chance += 10
             
         if random.randint(0, 100) < chance:
             fire_occurred = 1
         else:
             fire_occurred = 0
             
-    else: # weather_type == 'KERING'
-        # SKENARIO 3: Tidak Hujan -> Risiko Tinggi
+    else: # EKSTRIM_KERING
+        # Panas + Kering + (Mungkin) Angin Kencang
+        temperature = round(random.uniform(33, 41), 2)
+        humidity = random.randint(20, 50)
         rainfall = 0.0
+        wind_speed = round(random.uniform(3.0, 18.0), 2) # Angin bervariasi
         
-        # Sub-skenario: Panas Normal vs Panas Ekstrim
-        if random.random() < 0.6: # 60% hari kering itu panas biasa
-            temperature = round(random.uniform(28, 33), 2)
-            humidity = random.randint(45, 70)
-            chance = 10 # Risiko rendah
-        else: # 40% hari kering itu Panas Ekstrim (Heatwave)
-            temperature = round(random.uniform(34, 40), 2)
-            humidity = random.randint(20, 45)
-            chance = 80 # Risiko SANGAT TINGGI
+        # LOGIKA SCORING BAHAYA
+        danger_score = 0
+        
+        # 1. Faktor Suhu & Lembab
+        if temperature > 35: danger_score += 30
+        if humidity < 40: danger_score += 20
+        
+        # 2. Faktor Lahan Gambut
+        if loc['is_peatland'] == 1:
+            danger_score += 25
             
-            # Faktor Gambut memperparah
-            if loc['is_peatland'] == 1:
-                chance += 15 # Jadi 95%
+        # 3. FAKTOR BARU: ANGIN
+        # Angin kencang menyuplai oksigen ke api
+        if wind_speed > 10.0: 
+            danger_score += 15
+        elif wind_speed > 15.0:
+            danger_score += 25
         
-        # Eksekusi peluang kebakaran
-        if random.randint(0, 100) < chance:
+        # Base probability 10%
+        total_chance = 10 + danger_score
+        
+        # Limit max chance 98%
+        if total_chance > 98: total_chance = 98
+        
+        if random.randint(0, 100) < total_chance:
             fire_occurred = 1
         else:
             fire_occurred = 0
 
     data.append([
         loc['lat'], loc['lon'], loc['name'], 
-        temperature, humidity, rainfall, 
+        temperature, humidity, rainfall, wind_speed, # <-- Ada Wind Speed
         loc['is_peatland'], fire_occurred
     ])
 
 # Simpan
-df = pd.DataFrame(data, columns=['latitude', 'longitude', 'location_name', 'temperature', 'humidity', 'rainfall', 'is_peatland', 'fire_occurred'])
+cols = ['latitude', 'longitude', 'location_name', 'temperature', 'humidity', 'rainfall', 'wind_speed', 'is_peatland', 'fire_occurred']
+df = pd.DataFrame(data, columns=cols)
 df.to_csv("dataset/indonesia_fire_data.csv", index=False)
 
-print(f"Selesai! Data mencakup skenario 'Hujan Gerimis tapi Kebakaran'.")
-print("Sebaran Data:")
-print(df.groupby('is_peatland')['fire_occurred'].value_counts())
+print(f"Dataset baru dengan Angin (Wind Speed) berhasil dibuat!")
+print(df[['temperature', 'wind_speed', 'fire_occurred']].head())

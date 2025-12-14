@@ -27,15 +27,14 @@ const MONITORING_STATIONS = [
   { id: 5, name: "Ogan Komering Ilir (Sumatera Selatan)", lat: -3.3970, lon: 104.8310, defaultPeat: 1 },
   
   // --- SKENARIO DEMO BARU (Tanpa Koordinat) ---
-  // Lat/Lon kita set null agar peta tidak bergerak
-  { id: 99, name: "⚠️ SKENARIO DEMO: Cuaca Ekstrem (Kebakaran)", lat: null, lon: null, defaultPeat: 1 },
+  { id: 99, name: "⚠️ SKENARIO DEMO: Badai Api (Angin Kencang)", lat: null, lon: null, defaultPeat: 1 },
 ]
 
 // Komponen untuk animasi geser peta
 function MapUpdater({ center }) {
   const map = useMap();
   useEffect(() => {
-    if (center) { // Hanya gerak jika ada koordinat valid
+    if (center) { 
         map.flyTo(center, 10);
     }
   }, [center, map]);
@@ -43,10 +42,12 @@ function MapUpdater({ center }) {
 }
 
 function App() {
+  // 1. UPDATE STATE: Tambahkan wind_speed
   const [formData, setFormData] = useState({
     temperature: "",
     humidity: "",
     rainfall: "",
+    wind_speed: "", // <--- TAMBAH INI
     is_peatland: 0
   })
 
@@ -55,7 +56,6 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [weatherStatus, setWeatherStatus] = useState("")
   
-  // Default Map Center (Indonesia Tengah)
   const [mapCenter, setMapCenter] = useState([-0.7893, 113.9213]) 
 
   const handleLocationChange = async (e) => {
@@ -71,22 +71,20 @@ function App() {
     
     // --- LOGIKA SKENARIO DEMO ---
     if (station.id === 99) {
-        // 1. Jangan geser peta (mapCenter tetap yang lama)
-        // 2. Set Status Demo
-        setWeatherStatus("⚠️ Mode Simulasi: Memaksa kondisi sangat kering & panas...");
+        setWeatherStatus("⚠️ Mode Simulasi: Memaksa kondisi Ekstrem + Angin Kencang...");
         
-        // 3. Paksa Data Form (Manual Override)
+        // 2. UPDATE DEMO: Masukkan nilai angin kencang
         setFormData({
-            temperature: 39.5,  // Sangat Panas
-            humidity: 20,       // Sangat Kering
-            rainfall: 0,        // Tidak Hujan
-            is_peatland: 1      // Lahan Gambut
+            temperature: 39.5,  
+            humidity: 20,       
+            rainfall: 0,        
+            wind_speed: 25.5,    // <--- ANGIN KENCANG (m/s)
+            is_peatland: 1      
         })
-        return; // BERHENTI DI SINI (Jangan panggil API Cuaca)
+        return; 
     }
 
     // --- LOGIKA NORMAL (Panggil API) ---
-    // Update Posisi Peta
     setMapCenter([station.lat, station.lon])
     
     setWeatherStatus(`Mengambil data satelit...`)
@@ -102,11 +100,13 @@ function App() {
       if (response.ok) {
         let rainValue = data.rain ? data.rain['1h'] : 0;
         
+        // 3. UPDATE FETCH: Ambil data.wind.speed
         setFormData(prev => ({
           ...prev,
           temperature: data.main.temp,
           humidity: data.main.humidity,
-          rainfall: rainValue
+          rainfall: rainValue,
+          wind_speed: data.wind.speed // <--- AMBIL DARI API
         }))
         setWeatherStatus(`✅ Data Terkini: ${data.weather[0].description} (Updated: ${new Date().toLocaleTimeString()})`)
       } else {
@@ -131,6 +131,7 @@ function App() {
           temperature: parseFloat(formData.temperature),
           humidity: parseFloat(formData.humidity),
           rainfall: parseFloat(formData.rainfall),
+          wind_speed: parseFloat(formData.wind_speed), // <--- 4. KIRIM KE BACKEND
           is_peatland: parseInt(formData.is_peatland)
         }),
       })
@@ -156,7 +157,6 @@ function App() {
           
           <MapUpdater center={mapCenter} />
 
-          {/* Marker Lokasi (Hanya render jika punya koordinat) */}
           {MONITORING_STATIONS.map(station => (
             station.lat && station.lon ? (
                 <Marker key={station.id} position={[station.lat, station.lon]}>
@@ -197,6 +197,7 @@ function App() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {/* 5. UPDATE TAMPILAN: Buat Grid 2x2 agar Angin Masuk */}
             <div className='grid grid-cols-2 gap-3'>
               <div>
                 <label className="block text-xs font-medium text-gray-500">Suhu (°C)</label>
@@ -206,11 +207,16 @@ function App() {
                 <label className="block text-xs font-medium text-gray-500">Kelembaban (%)</label>
                 <input type="number" name="humidity" value={formData.humidity} readOnly className="mt-1 w-full p-2 border rounded bg-gray-100 font-bold" />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500">Curah Hujan (mm)</label>
-              <input type="number" name="rainfall" value={formData.rainfall} readOnly className="mt-1 w-full p-2 border rounded bg-gray-100 font-bold" />
+              {/* Baris Kedua */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500">Curah Hujan (mm)</label>
+                <input type="number" name="rainfall" value={formData.rainfall} readOnly className="mt-1 w-full p-2 border rounded bg-gray-100 font-bold" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500">Angin (m/s)</label>
+                {/* INPUT ANGIN BARU */}
+                <input type="number" name="wind_speed" value={formData.wind_speed} readOnly className="mt-1 w-full p-2 border rounded bg-gray-100 font-bold" />
+              </div>
             </div>
             
             {/* --- JENIS LAHAN (OTOMATIS TERKUNCI) --- */}
